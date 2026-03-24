@@ -56,7 +56,7 @@ app.secret_key = "supersecretkey123"
 def safe_redirect(url, fallback="/"):
     if not url:
         return redirect(fallback, code=302)
-    url = url.replace("//","")
+    url = url.replace("\\","")
     parsed = urlparse(url)
     if parsed.scheme or parsed.netloc:
         return redirect(fallback, code=302)
