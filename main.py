@@ -59,7 +59,7 @@ def safe_redirect(url, fallback="/"):
     url = url.replace("//","")
     parsed = urlparse(url)
     if parsed.scheme or parsed.netloc:
-        abort(400, description="Invalid redirect target.")
+        return redirect(fallback, code=302)
     return redirect(url, code=302)
 # ── Home / Login ──────────────────────────────────────────────────────────────
 
