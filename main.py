@@ -56,8 +56,9 @@ app.secret_key = "supersecretkey123"
 def safe_redirect(url, fallback="/"):
     if not url:
         return redirect(fallback, code=302)
+    url = url.replace("//","")
     parsed = urlparse(url)
-    if parsed.scheme or parsed.netloc or url.startswith("//"):
+    if parsed.scheme or parsed.netloc:
         abort(400, description="Invalid redirect target.")
     return redirect(url, code=302)
 # ── Home / Login ──────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ def safe_redirect(url, fallback="/"):
 def home():
     # VULNERABILITY: Open Redirect — blindly follows 'url' query parameter
     if request.method == "GET" and request.args.get("url"):
+        return
         safe_redirect(request.args.get("url"), code=302)
 
     # VULNERABILITY: Reflected XSS — 'msg' rendered with |safe in template
@@ -132,7 +134,7 @@ def profile():
     # VULNERABILITY: No authentication check — any visitor can read any profile
     # VULNERABILITY: SQL Injection via 'user' parameter in getUserProfile()
     if request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+        return safe_redirect(request.args.get("url"), code=302)
     username = request.args.get("user", "")
     profile_data = db.getUserProfile(username)
     return render_template("profile.html", profile=profile_data, username=username)
