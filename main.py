@@ -2,7 +2,8 @@ import os
 import sys
 import sqlite3
 import subprocess
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, abort
+from urllib.parse import urlparse
 from flask_cors import CORS
 import user_management as db
 
@@ -52,7 +53,13 @@ CORS(app)
 # VULNERABILITY: Hardcoded secret key — session cookies can be forged
 app.secret_key = "supersecretkey123"
 
-
+def safe_redirect(url, fallback="/"):
+    if not url:
+        return redirect(fallback, code=302)
+    parsed = urlparse(url)
+    if parsed.scheme or parsed.netloc or url.startswith("//"):
+        os.abort(400, description="Invalid redirect target.")
+    return redirect(url, code=302)
 # ── Home / Login ──────────────────────────────────────────────────────────────
 
 @app.route("/", methods=["POST", "GET"])
