@@ -58,7 +58,7 @@ def safe_redirect(url, fallback="/"):
         return redirect(fallback, code=302)
     parsed = urlparse(url)
     if parsed.scheme or parsed.netloc or url.startswith("//"):
-        os.abort(400, description="Invalid redirect target.")
+        abort(400, description="Invalid redirect target.")
     return redirect(url, code=302)
 # ── Home / Login ──────────────────────────────────────────────────────────────
 
@@ -67,7 +67,7 @@ def safe_redirect(url, fallback="/"):
 def home():
     # VULNERABILITY: Open Redirect — blindly follows 'url' query parameter
     if request.method == "GET" and request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+        safe_redirect(request.args.get("url"), code=302)
 
     # VULNERABILITY: Reflected XSS — 'msg' rendered with |safe in template
     if request.method == "GET":
@@ -90,7 +90,8 @@ def home():
 @app.route("/signup.html", methods=["POST", "GET"])
 def signup():
     if request.method == "GET" and request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+        return
+        safe_redirect(request.args.get("url"), code=302)
 
     if request.method == "POST":
         username = request.form["username"]
@@ -110,7 +111,7 @@ def signup():
 @app.route("/feed.html", methods=["POST", "GET"])
 def feed():
     if request.method == "GET" and request.args.get("url"):
-        return redirect(request.args.get("url"), code=302)
+        safe_redirect(request.args.get("url"), code=302)
 
     if request.method == "POST":
         post_content = request.form["content"]
