@@ -78,19 +78,17 @@ function urlBase64ToUint8Array(base64String) {
   return output;
 }
 
-// ── DOM-based XSS ─────────────────────────────────────────────────────────────
-// VULNERABILITY: Reads 'msg' from the URL query string and injects it via innerHTML
-// A crafted link like /?msg=<img src=x onerror=alert(1)> will execute JavaScript
-// This is separate from the server-side reflected XSS in index.html (double vuln)
+// ── DOM-based XSS (FIXED) ────────────────────────────────────────────────────────
+// SECURITY FIX: Using textContent instead of innerHTML to prevent XSS
+// textContent treats input as plain text, not executable HTML/JavaScript
 window.addEventListener('DOMContentLoaded', function () {
   const params  = new URLSearchParams(window.location.search);
   const msg     = params.get('msg');
   const msgBox  = document.getElementById('js-msg-box');
 
   if (msg && msgBox) {
-    // VULNERABILITY: innerHTML allows arbitrary HTML/JS execution from URL param
-    // Secure fix: use textContent instead
-    msgBox.innerHTML = msg;
+    // SECURE: textContent only interprets as plain text, preventing XSS
+    msgBox.textContent = msg;
   }
 
   // ── Highlight active nav link ──────────────────────────────────────────────
@@ -103,23 +101,36 @@ window.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-// ── Insecure postMessage Listener ─────────────────────────────────────────────
-// VULNERABILITY: Listens for postMessage events from ANY origin (no origin check)
-// An iframe on a malicious page can send messages that trigger actions here
+// ── Insecure postMessage Listener (FIXED) ────────────────────────────────────────
+// SECURITY FIX: Added origin validation + removed unsafe redirect/innerHTML
 window.addEventListener('message', function (event) {
-  // VULNERABILITY: No check on event.origin — accepts messages from any domain
-  console.log('[App] postMessage received from:', event.origin, 'data:', event.data);
+  // SECURE: Only accept messages from the same origin (trusted source)
+  const expectedOrigin = window.location.origin;
+  if (event.origin !== expectedOrigin) {
+    console.warn('[App] Rejected postMessage from untrusted origin:', event.origin);
+    return;  // Silently ignore messages from other domains
+  }
 
+  console.log('[App] postMessage received from trusted origin:', event.origin, 'data:', event.data);
+
+  // REMOVED: Unsafe redirect functionality to prevent open redirect attacks
+  // if (event.data && event.data.action === 'redirect') { ... }
+
+  // ALTERNATIVE: If redirect is needed, implement URL validation
   if (event.data && event.data.action === 'redirect') {
-    // VULNERABILITY: Redirects to attacker-supplied URL with no validation
-    window.location.href = event.data.url;
+    // Only allow internal redirects (start with /)
+    if (event.data.url && event.data.url.startsWith('/')) {
+      window.location.href = event.data.url;
+    } else {
+      console.warn('[App] Blocked redirect to external URL:', event.data.url);
+    }
   }
 
   if (event.data && event.data.action === 'setMsg') {
     const msgBox = document.getElementById('js-msg-box');
     if (msgBox) {
-      // VULNERABILITY: innerHTML again — cross-origin XSS via postMessage
-      msgBox.innerHTML = event.data.content;
+      // SECURE: Use textContent instead of innerHTML to prevent XSS
+      msgBox.textContent = event.data.content;
     }
   }
 });
